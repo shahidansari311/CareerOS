@@ -1,0 +1,520 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+// -----------------------------------------------------------------------------
+// CORE AUTHENTICATION & USER MODELS
+// -----------------------------------------------------------------------------
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum OnboardingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id               String           @id @default(uuid())
+  email            String           @unique
+  passwordHash     String? // Nullable for OAuth-only users
+  role             Role             @default(STUDENT)
+  isVerified       Boolean          @default(false)
+  onboardingStatus OnboardingStatus @default(NOT_STARTED)
+  onboardingStep   Int              @default(1)
+
+  // Relations
+  accounts       Account[]
+  sessions       Session[]
+  profile        StudentProfile?
+  mentorSessions MentorSession[]
+  studyDocuments StudyDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  provider          String // e.g., 'google'
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  sessionToken String   @unique
+  expiresAt    DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+
+  @@unique([email, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+
+  @@unique([email, token])
+}
+
+// -----------------------------------------------------------------------------
+// STUDENT PROFILE
+// -----------------------------------------------------------------------------
+
+model StudentProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  firstName      String
+  lastName       String
+  college        String?
+  branch         String?
+  graduationYear Int?
+  currentYear    Int?
+  semester       Int?
+  cgpa           Float?
+  location       String?
+  avatarUrl      String?
+  resumeUrl      String?
+  headline       String?
+  bio            String?
+  currentStatus  String?
+
+  // Relations
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  education           Education[]
+  careerGoals         CareerGoal[]
+  careerInterests     CareerInterest[]
+  userSkills          UserSkill[]
+  roadmaps            Roadmap[]
+  githubProfile       GithubProfile?
+  applications        Application[]
+  sentConnections     Connection[]     @relation("Requester")
+  receivedConnections Connection[]     @relation("Recipient")
+  posts               Post[]
+  projects            Project[]
+  codingProfiles      CodingProfile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Education {
+  id        String @id @default(uuid())
+  profileId String
+
+  institutionName String
+  degree          String
+  fieldOfStudy    String
+  startDate       DateTime
+  endDate         DateTime?
+  current         Boolean   @default(false)
+  grade           String?
+
+  profile StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model CareerGoal {
+  id        String @id @default(uuid())
+  profileId String
+
+  title      String // e.g., "Become a Full Stack Engineer"
+  targetDate DateTime?
+  status     String    @default("ACTIVE") // ACTIVE, ACHIEVED, ABANDONED
+
+  profile StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model CareerInterest {
+  id        String @id @default(uuid())
+  profileId String
+
+  industry String // e.g., "Fintech"
+  role     String // e.g., "Backend Developer"
+
+  profile StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+// -----------------------------------------------------------------------------
+// AUDIT LOGS
+// -----------------------------------------------------------------------------
+
+model AuditLog {
+  id        String  @id @default(uuid())
+  userId    String? // Nullable if action performed by system or unauthenticated user
+  action    String
+  resource  String?
+  details   Json?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+}
+
+model EmailLog {
+  id            String  @id @default(uuid())
+  recipient     String
+  template      String
+  status        String // SENT, FAILED
+  provider      String?
+  messageId     String?
+  failureReason String?
+
+  createdAt DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// GITHUB INTEGRATION (PHASE 6)
+// -----------------------------------------------------------------------------
+
+model GithubProfile {
+  id        String @id @default(uuid())
+  profileId String @unique
+  username  String @unique
+
+  followers   Int     @default(0)
+  following   Int     @default(0)
+  publicRepos Int     @default(0)
+  totalStars  Int     @default(0)
+  avatarUrl   String?
+
+  profile      StudentProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  repositories GithubRepository[]
+
+  lastSyncedAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model GithubRepository {
+  id              String @id @default(uuid())
+  githubProfileId String
+
+  githubId        String // ID from GitHub API
+  name            String
+  description     String?
+  url             String
+  primaryLanguage String?
+  stars           Int     @default(0)
+  forks           Int     @default(0)
+
+  githubProfile GithubProfile @relation(fields: [githubProfileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([githubProfileId, githubId])
+}
+
+// -----------------------------------------------------------------------------
+// SKILLS & CAREER INTELLIGENCE (PHASE 5)
+// -----------------------------------------------------------------------------
+
+model Skill {
+  id       String @id @default(uuid())
+  name     String @unique // e.g. "React", "Python", "System Design"
+  category String // e.g. "Frontend", "Backend", "Soft Skill"
+
+  // Relations
+  userSkills   UserSkill[]
+  requirements SkillRequirement[]
+
+  createdAt               DateTime                 @default(now())
+  opportunityRequirements OpportunityRequirement[]
+}
+
+model UserSkill {
+  id        String @id @default(uuid())
+  profileId String
+  skillId   String
+
+  currentLevel   Int      @default(1) // 1-10
+  confidence     Int      @default(1) // 1-10
+  evidence       String? // Link to project, github, etc
+  source         String   @default("MANUAL") // MANUAL, GITHUB, ASSESSMENT
+  lastAssessedAt DateTime @default(now())
+
+  profile StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  skill   Skill          @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, skillId])
+}
+
+model CareerPath {
+  id          String  @id @default(uuid())
+  title       String  @unique // e.g. "Full Stack Engineer"
+  description String?
+  industry    String
+
+  // Relations
+  requirements SkillRequirement[]
+  roadmaps     Roadmap[]
+
+  createdAt DateTime @default(now())
+}
+
+model SkillRequirement {
+  id           String @id @default(uuid())
+  careerPathId String
+  skillId      String
+
+  targetLevel Int // 1-10 level required for this path
+  isCore      Boolean @default(true) // Core vs Optional
+
+  careerPath CareerPath @relation(fields: [careerPathId], references: [id], onDelete: Cascade)
+  skill      Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([careerPathId, skillId])
+}
+
+model Roadmap {
+  id           String @id @default(uuid())
+  profileId    String
+  careerPathId String
+
+  title      String
+  status     String @default("ACTIVE") // ACTIVE, COMPLETED, ABANDONED
+  completion Float  @default(0.0) // 0 - 100 percentage
+
+  profile    StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  careerPath CareerPath     @relation(fields: [careerPathId], references: [id], onDelete: Cascade)
+  steps      RoadmapStep[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RoadmapStep {
+  id        String @id @default(uuid())
+  roadmapId String
+
+  title       String
+  description String?
+  orderIndex  Int
+  status      String  @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  type        String  @default("LEARN") // LEARN, BUILD, APPLY
+
+  roadmap Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// AI SERVICE (PHASE 7)
+// -----------------------------------------------------------------------------
+
+model MentorSession {
+  id     String  @id @default(uuid())
+  userId String
+  title  String?
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatMessage {
+  id              String @id @default(uuid())
+  mentorSessionId String
+  role            String // USER, AI, SYSTEM
+  content         String @db.Text
+
+  session MentorSession @relation(fields: [mentorSessionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model StudyDocument {
+  id     String @id @default(uuid())
+  userId String
+
+  filename String
+  fileSize Int
+  mimetype String
+  status   String @default("PROCESSING") // PROCESSING, READY, ERROR
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chunks DocumentChunk[]
+
+  createdAt DateTime @default(now())
+}
+
+model DocumentChunk {
+  id              String @id @default(uuid())
+  studyDocumentId String
+
+  content   String                     @db.Text
+  embedding Unsupported("vector(768)") // Google Gemini embeddings are 768d
+
+  document StudyDocument @relation(fields: [studyDocumentId], references: [id], onDelete: Cascade)
+}
+
+// -----------------------------------------------------------------------------
+// OPPORTUNITIES & APPLICATIONS (PHASE 8)
+// -----------------------------------------------------------------------------
+
+model Opportunity {
+  id          String  @id @default(uuid())
+  title       String
+  company     String
+  location    String?
+  type        String  @default("FULL_TIME") // FULL_TIME, INTERNSHIP, HACKATHON
+  salaryRange String?
+  description String  @db.Text
+  url         String? // External link if applicable
+  isActive    Boolean @default(true)
+
+  // External Job Aggregation Fields
+  externalId     String?
+  source         String? // e.g. "Adzuna", "Remotive", "Arbeitnow"
+  companyLogo    String?
+  remote         Boolean  @default(false)
+  salaryMin      Float?
+  salaryMax      Float?
+  salaryCurrency String?
+  publishedAt    DateTime?
+
+  requirements OpportunityRequirement[]
+  applications Application[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([source, externalId])
+}
+
+model OpportunityRequirement {
+  id            String @id @default(uuid())
+  opportunityId String
+  skillId       String
+  targetLevel   Int    @default(1)
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  skill       Skill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([opportunityId, skillId])
+}
+
+model Application {
+  id            String  @id @default(uuid())
+  profileId     String
+  opportunityId String
+  status        String  @default("APPLIED") // APPLIED, INTERVIEWING, OFFER, REJECTED
+  resumeUrl     String?
+
+  profile     StudentProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  opportunity Opportunity        @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  events      ApplicationEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([profileId, opportunityId]) // Prevent duplicate applications
+}
+
+model ApplicationEvent {
+  id            String  @id @default(uuid())
+  applicationId String
+  status        String
+  note          String?
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// COMMUNITY & PEER NETWORK (PHASE 9)
+// -----------------------------------------------------------------------------
+
+model Connection {
+  id          String @id @default(uuid())
+  requesterId String
+  recipientId String
+  status      String @default("PENDING") // PENDING, ACCEPTED, REJECTED
+
+  requester StudentProfile @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  recipient StudentProfile @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([requesterId, recipientId])
+}
+
+model Post {
+  id        String @id @default(uuid())
+  profileId String
+  content   String @db.Text
+
+  profile StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  profileId   String
+  title       String
+  description String
+  tech        String[]
+  matchScore  Int      @default(0)
+  githubUrl   String?
+  liveUrl     String?
+
+  profile StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CodingProfile {
+  id        String   @id @default(uuid())
+  profileId String
+  platform  String   // 'LEETCODE' | 'HACKERRANK' | 'CODECHEF' | 'CODEFORCES' | 'GITHUB' | 'GEEKSFORGEEKS'
+  username  String
+  solved    Int      @default(0)
+  rating    Int      @default(0)
+  rank      Int      @default(0)
+  streak    Int      @default(0)
+  
+  profile   StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([profileId, platform])
+}
+

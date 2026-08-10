@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-heading: 'Inter', var(--font-sans);
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --background: #FBE9D0;
+    --foreground: #1e293b; /* Darker slate for better readability in light mode */
+    
+    --surface: #ffffff;
+    --surface-muted: #F3DEC1;
+    
+    --primary: #244855;
+    --primary-foreground: #ffffff;
+    
+    --accent: #E64B33;
+    --accent-foreground: #ffffff;
+    
+    --secondary: #90AEAD;
+    --secondary-foreground: #244855;
+
+    --muted: #874F41;
+    --muted-foreground: #475569; /* Darker muted text in light mode */
+    
+    --border: #E8D6BD;
+    --input: #E8D6BD;
+    --ring: #E64B33;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: #121A20;
+    --foreground: #ffffff;
+    
+    --surface: #1A2833;
+    --surface-muted: #243542;
+    
+    --primary: #90AEAD; /* Lighter teal so it's visible on dark backgrounds */
+    --primary-foreground: #121A20;
+    
+    --accent: #E64B33;
+    --accent-foreground: #ffffff;
+    
+    --secondary: #244855;
+    --secondary-foreground: #ffffff;
+
+    --muted: #874F41;
+    --muted-foreground: #cbd5e1; /* Much lighter for better contrast */
+    
+    --border: #2A3F4F;
+    --input: #2A3F4F;
+    --ring: #E64B33;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading tracking-tight;
+  }
+}
