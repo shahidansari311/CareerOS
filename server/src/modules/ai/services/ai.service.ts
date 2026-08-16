@@ -72,12 +72,17 @@ export class AiService {
     contents.push({ role: 'user', parts: [{ text: message }] });
 
     // Build System Instructions
-    const systemInstruction = profile 
-      ? `You are an expert AI Career Mentor for a college student named ${profile.firstName} ${profile.lastName}. 
-         They are studying at ${profile.college} in ${profile.branch}. 
-         Their career goals: ${profile.careerGoals.map(g => g.title).join(', ')}. 
-         Be encouraging, highly technical, and strictly focus on helping them achieve their career goals. Keep responses concise.`
-      : 'You are an expert AI Career Mentor for college students. Be encouraging and concise.';
+    let systemInstruction = 'You are an expert AI Career Mentor for college students. Be encouraging, highly technical, and concise. Do not ask the user for their major, university, or goals if they are not provided.';
+    if (profile) {
+      systemInstruction = `You are an expert AI Career Mentor for a college student named ${profile.firstName} ${profile.lastName}.`;
+      if (profile.college || profile.branch) {
+        systemInstruction += ` They are studying ${profile.branch || 'a degree'} at ${profile.college || 'university'}.`;
+      }
+      if (profile.careerGoals && profile.careerGoals.length > 0) {
+        systemInstruction += ` Their career goals: ${profile.careerGoals.map((g: any) => g.title).join(', ')}.`;
+      }
+      systemInstruction += ' Be encouraging, highly technical, and strictly focus on helping them achieve their career goals. Keep responses concise. If some profile information is missing, do NOT ask the user to provide it.';
+    }
 
     const response = await this.ai.models.generateContent({
       model: 'gemini-3.5-flash',

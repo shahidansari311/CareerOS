@@ -199,19 +199,26 @@ export default function StudyRoomPage() {
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
               <BookOpen size={18} /> My Materials
             </CardTitle>
-            <label className="cursor-pointer">
-              <Button size="sm" variant="outline" className="gap-2 pointer-events-none" disabled={isUploading}>
-                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload size={14} />}
-                Upload
-              </Button>
+            <div>
               <input
                 type="file"
+                id="pdf-upload"
                 accept=".pdf"
                 className="hidden"
                 onChange={handleFileUpload}
                 disabled={isUploading}
               />
-            </label>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="gap-2" 
+                disabled={isUploading}
+                onClick={() => document.getElementById('pdf-upload')?.click()}
+              >
+                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload size={14} />}
+                Upload
+              </Button>
+            </div>
           </CardHeader>
           
           <CardContent className="p-0 flex-1 overflow-y-auto bg-surface/30">

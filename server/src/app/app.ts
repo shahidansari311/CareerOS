@@ -14,7 +14,7 @@ import { v1Router } from './routes';
 export const app = express();
 
 // Security Middleware
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors(corsOptions));
 
 // Request Tracking & Logging

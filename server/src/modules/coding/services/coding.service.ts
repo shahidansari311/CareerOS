@@ -33,40 +33,40 @@ export class CodingService {
 
     switch (data.platform) {
       case 'LEETCODE':
-        solved = Math.floor(150 + Math.random() * 400);
-        rating = Math.floor(1400 + Math.random() * 800);
-        rank = Math.floor(10000 + Math.random() * 150000);
-        streak = Math.floor(3 + Math.random() * 25);
+        try {
+          const res = await fetch(`https://alfa-leetcode-api.onrender.com/${data.username}`);
+          if (res.ok) {
+            const ldata = await res.json();
+            solved = ldata.solvedProblem || 0;
+            rating = 0;
+            rank = ldata.ranking || 0;
+            streak = 0;
+          }
+        } catch (e) {
+          console.error("Failed to fetch LeetCode data", e);
+        }
         break;
       case 'HACKERRANK':
-        solved = Math.floor(80 + Math.random() * 200);
-        rating = 0; // HackerRank focuses more on stars
-        rank = Math.floor(5000 + Math.random() * 95000);
-        streak = Math.floor(1 + Math.random() * 10);
         break;
       case 'CODECHEF':
-        solved = Math.floor(50 + Math.random() * 300);
-        rating = Math.floor(1300 + Math.random() * 900);
-        rank = Math.floor(1000 + Math.random() * 50000);
-        streak = Math.floor(2 + Math.random() * 15);
         break;
       case 'CODEFORCES':
-        solved = Math.floor(40 + Math.random() * 250);
-        rating = Math.floor(1000 + Math.random() * 1100);
-        rank = Math.floor(500 + Math.random() * 35000);
-        streak = Math.floor(1 + Math.random() * 12);
         break;
       case 'GITHUB':
-        solved = Math.floor(10 + Math.random() * 50); // represents public repositories
-        rating = Math.floor(5 + Math.random() * 100);  // represents total stars in this context
-        rank = 0;
-        streak = Math.floor(2 + Math.random() * 30);  // contribution streak
+        try {
+          const res = await fetch(`https://api.github.com/users/${data.username}`);
+          if (res.ok) {
+            const gdata = await res.json();
+            solved = gdata.public_repos || 0;
+            rating = 0;
+            rank = 0;
+            streak = 0;
+          }
+        } catch (e) {
+          console.error("Failed to fetch GitHub data", e);
+        }
         break;
       case 'GEEKSFORGEEKS':
-        solved = Math.floor(100 + Math.random() * 500);
-        rating = 0;
-        rank = Math.floor(5000 + Math.random() * 80000);
-        streak = Math.floor(3 + Math.random() * 20);
         break;
     }
 

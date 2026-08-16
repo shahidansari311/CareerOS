@@ -26,7 +26,12 @@ export class RoadmapRepository {
   async getUserRoadmaps(profileId: string) {
     return prisma.roadmap.findMany({
       where: { profileId },
-      include: { careerPath: true },
+      include: { 
+        careerPath: true,
+        steps: {
+          orderBy: { orderIndex: 'asc' },
+        }
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
